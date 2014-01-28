@@ -33,7 +33,7 @@ class CallerCallCallback(pjsua.CallCallback):
 
     def __init__(self, call=None):
         pjsua.CallCallback.__init__(self, call)
-        self.ringer = Player("ring.wav", loop=True)
+        self.ringer = Player("media/ring.wav", loop=True)
         self.sfx = None
 
     # Notification when call state has changed
@@ -50,9 +50,9 @@ class CallerCallCallback(pjsua.CallCallback):
 
                 sound_filename = None
                 if self.call.info().state == pjsua.CallState.CONFIRMED:
-                    sound_filename = "call_connected.wav"
+                    sound_filename = "media/call_connected.wav"
                 elif self.call.info().state == pjsua.CallState.DISCONNECTED:
-                    sound_filename = "call_disconnected.wav"
+                    sound_filename = "media/call_disconnected.wav"
                 self.sfx = Player(sound_filename)
                 self.sfx.play()
 
@@ -121,7 +121,7 @@ class Caller(object):
                 self.current_call = self.acc.make_call(sipid,
                                                        cb=CallerCallCallback())
             except pjsua.Error:
-                self.sfx = Player("error.wav")
+                self.sfx = Player("media/error.wav")
                 self.sfx.play()
 
     def cancel_call(self):
