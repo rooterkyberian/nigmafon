@@ -138,6 +138,10 @@ if __name__ == "__main__":
     tornado.options.define("allowed_users", default=[],
                            help="list of users", type=str)
 
+    tornado.options.define("gpio_mode", default="bcm",
+                           help="select GPIO numbering mode (bcm or board)",
+                           type=str)
+
     tornado.options.define("led_red_channel", default=0,
                            help="select gpio channel", type=int)
     tornado.options.define("led_green_channel", default=0,
@@ -153,14 +157,17 @@ if __name__ == "__main__":
     tornado.options.define("sipid", default="sip:localhost",
                            help="", type=str)
 
-    tornado.options.parse_command_line(final=False)
+    tornado.options.parse_command_line()
     if tornado.options.options.config:
         if os.path.exists(tornado.options.options.config):
-            tornado.options.parse_config_file(tornado.options.options.config,
-                                              final=False)
-    tornado.options.parse_command_line()
+            tornado.options.parse_config_file(tornado.options.options.config)
 
     options = tornado.options.options
+
+    if options.gpio_mode.lower() == "bcm":
+        GPIO.setmode(GPIO.BCM)
+    elif options.gpio_mode.lower() == "board":
+        GPIO.setmode(GPIO.BOARD)
 
     intercom = Intercom(
                          led_red_channel=options.led_red_channel,
