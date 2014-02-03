@@ -29,12 +29,28 @@ class Player(object):
         pjlib.player_destroy(self.player_id)
 
 
+class SimpleCallCallback(object):
+    def on_connecting(self):
+        pass
+
+    def on_connected(self):
+        pass
+
+    def on_disconnected(self):
+        pass
+
+
 class CallerCallCallback(pjsua.CallCallback):
 
-    def __init__(self, call=None):
+    def __init__(self, call=None,
+                 simple_callback=SimpleCallCallback()
+                 ):
+
         pjsua.CallCallback.__init__(self, call)
         self.ringer = Player("media/ring.wav", loop=True)
         self.sfx = None
+
+        self.simple_callback = simple_callback
 
     # Notification when call state has changed
     def on_state(self):
@@ -43,6 +59,7 @@ class CallerCallCallback(pjsua.CallCallback):
             if self.call.info().state in (pjsua.CallState.CALLING,
                                           pjsua.CallState.INCOMING):
                 self.ringer.play()
+                self.simple_callback.on_connecting()
             elif self.call.info().state in (pjsua.CallState.CONFIRMED,
                                             pjsua.CallState.DISCONNECTED):
                 self.ringer.stop()
@@ -51,8 +68,10 @@ class CallerCallCallback(pjsua.CallCallback):
                 sound_filename = None
                 if self.call.info().state == pjsua.CallState.CONFIRMED:
                     sound_filename = "media/call_connected.wav"
+                    self.simple_callback.on_connected()
                 elif self.call.info().state == pjsua.CallState.DISCONNECTED:
                     sound_filename = "media/call_disconnected.wav"
+                    self.simple_callback.on_disconnected()
                 self.sfx = Player(sound_filename)
                 self.sfx.play()
 
@@ -82,7 +101,9 @@ class Caller(object):
 
     def __init__(self,
                  playback_dev_name="default",
-                 capture_dev_name="default"):
+                 capture_dev_name="default",
+                 simple_callback_factory=SimpleCallCallback
+                 ):
 
         ua_cfg = pjsua.UAConfig()
         ua_cfg.max_calls = 4
@@ -93,6 +114,8 @@ class Caller(object):
                    ua_cfg=ua_cfg)
 
         self.__snd_dev(capture_dev_name, playback_dev_name)
+
+        self.simple_callback_factory = simple_callback_factory
 
         # Create UDP transport which listens to any available port
         self.transport = pjlib.create_transport(pjsua.TransportType.UDP)
@@ -122,8 +145,10 @@ class Caller(object):
     def call(self, sipid):
         if self.current_call is None or not self.current_call.is_valid():
             try:
-                self.current_call = self.acc.make_call(sipid,
-                                                       cb=CallerCallCallback())
+                callcb = CallerCallCallback(
+                            simple_callback=self.simple_callback_factory()
+                                            )
+                self.current_call = self.acc.make_call(sipid, cb=callcb)
             except pjsua.Error:
                 self.sfx = Player("media/error.wav")
                 self.sfx.play()

@@ -9,6 +9,7 @@ from threading import Thread, Event
 import RPi.GPIO as GPIO
 
 from caller import Caller
+from caller import SimpleCallCallback
 
 
 class BlinkWorker(Thread):
@@ -108,8 +109,24 @@ class Intercom(object):
         self.led_red = OnOffDevice(led_red_channel)
         self.led_green = OnOffDevice(led_green_channel)
         self.doors = OnOffDevice(doors_channel)
-        self.caller = Caller(snd_dev_capture, snd_dev_playback)
+        self.caller = Caller(snd_dev_capture, snd_dev_playback,
+                             simple_callback_factory=self._callback_factory)
         self.buttonCall = Button(btn_call_channel, self.call)
+
+    def _callback_factory(self):
+        intercom = self
+
+        class _IntercomCallCallback(SimpleCallCallback):
+            def on_connecting(self):
+                intercom.led_green.start_blinking(0.5)
+
+            def on_connected(self):
+                intercom.led_green.set(True)
+
+            def on_disconnected(self):
+                intercom.led_green.set(False)
+
+        return _IntercomCallCallback()
 
     def call(self):
         self.caller.call(self.selected_sipid)
