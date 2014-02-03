@@ -106,14 +106,18 @@ class Caller(object):
 
     def __snd_dev(self, capture_dev_name, playback_dev_name):
         global pjlib
-        capture = playback = dev_id = 0
-        for dev in pjlib.enum_snd_dev():
-            if dev.name == capture_dev_name:
-                capture = dev_id
-            if dev.name == playback_dev_name:
-                playback = dev_id
-            dev_id += 1
-        pjlib.set_snd_dev(capture, playback)
+
+        if "null" in (capture_dev_name.lower(), playback_dev_name.lower()):
+            pjlib.set_null_snd_dev()
+        else:
+            capture = playback = dev_id = 0
+            for dev in pjlib.enum_snd_dev():
+                if dev.name == capture_dev_name:
+                    capture = dev_id
+                if dev.name == playback_dev_name:
+                    playback = dev_id
+                dev_id += 1
+            pjlib.set_snd_dev(capture, playback)
 
     def call(self, sipid):
         if self.current_call is None or not self.current_call.is_valid():
