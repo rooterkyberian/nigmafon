@@ -4,11 +4,24 @@
 '''
 
 import time
-from threading import Thread
+from threading import Thread, Event
 
 import RPi.GPIO as GPIO
 
 from caller import Caller
+
+
+class BlinkWorker(Thread):
+    def __init__(self, onoffdev, blink_duration=0.5):
+        self.onoffdev = onoffdev
+        self.blink_duration = blink_duration
+
+    def run(self):
+        while not self.onoffdev.blinker_event_off.is_set():
+            if not self.onoffdev.blinker_event_off.wait(self.blink_duration):
+                self.onoffdev.toggle()
+            else:
+                break
 
 
 class OnOffDevice(object):
@@ -22,8 +35,10 @@ class OnOffDevice(object):
         self.channel = gpio
         self.invert = invert
         GPIO.setup(self.channel, GPIO.OUT, initial=False ^ self.invert)
+        self.blinker_event_off = Event()
 
     def set(self, on):
+        self.stop_blinking()
         GPIO.output(self.channel, on ^ self.invert)
 
     def get(self):
@@ -31,6 +46,18 @@ class OnOffDevice(object):
 
     def toggle(self):
         GPIO.output(self.channel, not GPIO.input(self.channel))
+
+    def start_blinking(self, blink_duration):
+        self.stop_blinking()
+        self.worker = BlinkWorker(self, blink_duration)
+        self.worker.start()
+
+    def stop_blinking(self):
+        self.blinker_event_off.set()
+        self.worker = None
+
+    def is_blinking(self):
+        return not self.blinker_event_off.is_set()
 
 
 class Button(object):
